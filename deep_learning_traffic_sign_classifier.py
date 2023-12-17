@@ -1,1 +1,186 @@
-{"metadata":{"kernelspec":{"language":"python","display_name":"Python 3","name":"python3"},"language_info":{"name":"python","version":"3.10.12","mimetype":"text/x-python","codemirror_mode":{"name":"ipython","version":3},"pygments_lexer":"ipython3","nbconvert_exporter":"python","file_extension":".py"},"kaggle":{"accelerator":"none","dataSources":[{"sourceId":7141790,"sourceType":"datasetVersion","datasetId":4122111}],"dockerImageVersionId":30587,"isInternetEnabled":false,"language":"python","sourceType":"script","isGpuEnabled":false}},"nbformat_minor":4,"nbformat":4,"cells":[{"cell_type":"code","source":"# %% [code] {\"execution\":{\"iopub.status.busy\":\"2023-12-07T07:07:28.973444Z\",\"iopub.execute_input\":\"2023-12-07T07:07:28.973832Z\",\"iopub.status.idle\":\"2023-12-07T07:07:42.096896Z\",\"shell.execute_reply.started\":\"2023-12-07T07:07:28.973801Z\",\"shell.execute_reply\":\"2023-12-07T07:07:42.095962Z\"}}\nimport numpy as np\nimport pandas as pd\nimport matplotlib\nimport matplotlib.pyplot as plt #to plot accuracy\nimport cv2\nimport tensorflow as tf\nfrom PIL import Image\nimport os\nfrom sklearn.model_selection import train_test_split  #to split training and testing data\nimport keras\nfrom keras.utils import to_categorical  #to convert the labels present in y_train and t_test into one-hot encoding\nfrom keras.models import Sequential, load_model\nfrom keras.layers import Conv2D, MaxPool2D, Dense, Flatten, Dropout  #to create CNN\n\ndata = []\nlabels = []\nclasses = 43\ncur_path = \"/kaggle/input/gtsrb-dataset/GTSRB/archive/\"\n\n# %% [code] {\"execution\":{\"iopub.status.busy\":\"2023-12-07T07:07:42.099125Z\",\"iopub.execute_input\":\"2023-12-07T07:07:42.100153Z\",\"iopub.status.idle\":\"2023-12-07T07:24:18.684933Z\",\"shell.execute_reply.started\":\"2023-12-07T07:07:42.100094Z\",\"shell.execute_reply\":\"2023-12-07T07:24:18.683871Z\"}}\n#Retrieving the images and their labels\nfor i in range(classes):\n    path = os.path.join(cur_path,\"Train\",str(i))\n    images = os.listdir(path)\n    for a in images:\n        try:\n            image = Image.open(path + \"/\"+ a)\n            image = image.resize((30,30))\n            image = np.array(image)\n            #sim = Image.fromarray(image)\n            data.append(image)\n            labels.append(i)\n        except:\n            print(\"Error loading image\")\n                              \n#Converting lists into numpy arrays\ndata = np.array(data)\nlabels = np.array(labels)\nprint(data.shape, labels.shape)\n                              \n#Splitting training and testing dataset\nX_train, X_test, Y_train, Y_test = train_test_split(data, labels, test_size=0.2, random_state=42)\nprint(X_train.shape, X_test.shape, Y_train.shape, Y_test.shape)\n                              \n#Converting the labels into one hot encoding\nY_train = to_categorical(Y_train, 43)\nY_test = to_categorical(Y_test, 43)\n                              \n#Building the model\nmodel = Sequential()\nmodel.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu', input_shape=X_train.shape[1:]))\nmodel.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu'))\nmodel.add(MaxPool2D(pool_size=(2, 2)))\nmodel.add(Dropout(rate=0.25))\nmodel.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))\nmodel.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))\nmodel.add(MaxPool2D(pool_size=(2, 2)))\nmodel.add(Dropout(rate=0.25))\nmodel.add(Flatten())\nmodel.add(Dense(256, activation='relu'))\nmodel.add(Dropout(rate=0.5))\nmodel.add(Dense(43, activation='softmax'))\n                              \n#Compilation of the model\nmodel.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])\neps = 15\nhistory = model.fit(X_train, Y_train, batch_size=32, epochs=eps, validation_data=(X_test, Y_test))\nmodel.save(\"/kaggle/working/TrafficSignClassificationModel.keras\")\n\n# %% [code] {\"execution\":{\"iopub.status.busy\":\"2023-12-07T07:24:18.686589Z\",\"iopub.execute_input\":\"2023-12-07T07:24:18.686945Z\",\"iopub.status.idle\":\"2023-12-07T07:24:19.286255Z\",\"shell.execute_reply.started\":\"2023-12-07T07:24:18.686915Z\",\"shell.execute_reply\":\"2023-12-07T07:24:19.285111Z\"}}\n#plotting graphs for accuracy\nplt.figure(0)\nplt.plot(history.history['accuracy'], label='training accuracy')\nplt.plot(history.history['val_accuracy'], label='val accuracy')\nplt.title('Accuracy')\nplt.xlabel('epochs')\nplt.ylabel('accuracy')\nplt.legend()\nplt.show()\nplt.figure(1)\nplt.plot(history.history['loss'], label='training loss')\nplt.plot(history.history['val_loss'], label='val loss')\nplt.title('Loss')\nplt.xlabel('epochs')\nplt.ylabel('loss')\nplt.legend()\nplt.show()\n\n# %% [code] {\"execution\":{\"iopub.status.busy\":\"2023-12-07T07:24:19.288300Z\",\"iopub.execute_input\":\"2023-12-07T07:24:19.288664Z\",\"iopub.status.idle\":\"2023-12-07T07:24:19.296144Z\",\"shell.execute_reply.started\":\"2023-12-07T07:24:19.288633Z\",\"shell.execute_reply\":\"2023-12-07T07:24:19.295312Z\"}}\n#dictionary to label all traffic signs class.\nclasses = { 1:'Speed limit (20km/h)',\n           2:'Speed limit (30km/h)',\n           3:'Speed limit (50km/h)',\n           4:'Speed limit (60km/h)',\n           5:'Speed limit (70km/h)',\n           6:'Speed limit (80km/h)',\n           7:'End of speed limit (80km/h)',\n           8:'Speed limit (100km/h)',\n           9:'Speed limit (120km/h)',\n           10:'No passing',\n           11:'No passing veh over 3.5 tons',\n           12:'Right-of-way at intersection',\n           13:'Priority road',\n           14:'Yield',\n           15:'Stop',\n           16:'No vehicles',\n           17:'Veh > 3.5 tons prohibited',\n           18:'No entry',\n           19:'General caution',\n           20:'Dangerous curve left',\n           21:'Dangerous curve right',\n           22:'Double curve',\n           23:'Bumpy road',\n           24:'Slippery road',\n           25:'Road narrows on the right',\n           26:'Road work',\n           27:'Traffic signals',\n           28:'Pedestrians',\n           29:'Children crossing',\n           30:'Bicycles crossing',\n           31:'Beware of ice/snow',\n           32:'Wild animals crossing',\n           33:'End speed + passing limits',\n           34:'Turn right ahead',\n           35:'Turn left ahead',\n           36:'Ahead only',\n           37:'Go straight or right',\n           38:'Go straight or left',\n           39:'Keep right',\n           40:'Keep left',\n           41:'Roundabout mandatory',\n           42:'End of no passing',\n           43:'End no passing vehicle with a weight greater than 3.5 tons' }\n\n\n# %% [code] {\"execution\":{\"iopub.status.busy\":\"2023-12-07T07:24:19.297223Z\",\"iopub.execute_input\":\"2023-12-07T07:24:19.297587Z\",\"iopub.status.idle\":\"2023-12-07T07:25:26.246382Z\",\"shell.execute_reply.started\":\"2023-12-07T07:24:19.297556Z\",\"shell.execute_reply\":\"2023-12-07T07:25:26.245158Z\"}}\n#testing accuracy on test dataset\nfrom sklearn.metrics import accuracy_score\ny_test = pd.read_csv(cur_path + 'Test.csv')\nlabels = y_test[\"ClassId\"].values\nimgs = y_test[\"Path\"].values\ndata=[]\n\nfor img in imgs:\n    image = Image.open(cur_path + img)\n    image = image.resize((30,30))\n    data.append(np.array(image))\n\nX_test=np.array(data)\npredict_x=model.predict(X_test) \nclasses_x=np.argmax(predict_x,axis=1)\n                              \n# Accuracy with the test data\nfrom sklearn.metrics import accuracy_score\nprint(accuracy_score(labels, classes_x))\n\n# %% [code] {\"execution\":{\"iopub.status.busy\":\"2023-12-07T07:25:26.248062Z\",\"iopub.execute_input\":\"2023-12-07T07:25:26.248506Z\",\"iopub.status.idle\":\"2023-12-07T07:25:31.725091Z\",\"shell.execute_reply.started\":\"2023-12-07T07:25:26.248466Z\",\"shell.execute_reply\":\"2023-12-07T07:25:31.722194Z\"}}\n#One-by-one testing to also visualise the test sample, the predicted and true labels!\nfrom random import randint\n\ny_test = pd.read_csv(cur_path + 'Test.csv')\nlabels = y_test[\"ClassId\"].values\nimgs = y_test[\"Path\"].values\n\na = randint(1, len(imgs) - 20)\n\nfor i in range(a, a + 20):\n    data = []\n    image = Image.open(cur_path + imgs[i])\n    image = image.resize((30,30))\n    data.append(np.array(image))\n    \n    X_test=np.array(data)\n    predict_x = model.predict(np.expand_dims(X_test[0], axis=0))\n    classes_x= np.argmax(predict_x,axis=1)\n    \n    plt.imshow(np.array(Image.open(cur_path + imgs[i])))\n    plt.show()\n    print(\"Prediction: \" + classes[int(classes_x) + 1])\n    print(\"True Label: \" + classes[int(labels[i] + 1)])","metadata":{"_uuid":"f2303b23-9aef-421e-ab72-27007b051286","_cell_guid":"0f02a6f4-8858-4e9e-8a34-6254d9596d22","collapsed":false,"jupyter":{"outputs_hidden":false},"trusted":true},"execution_count":null,"outputs":[]}]}
+# -*- coding: utf-8 -*-
+"""deep-learning-traffic-sign-classifier.ipynb
+
+Automatically generated by Colaboratory.
+
+Original file is located at
+    https://colab.research.google.com/drive/1WAH0XLG-hLv03zqVXCV_HsoSOjEYkus7
+"""
+
+# getting the dataset from the repository!
+!git clone https://github.com/OptimizedFunction/GTSRB-Traffic-Sign-Classifier.git
+
+import numpy as np
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt #to plot accuracy
+import cv2
+import tensorflow as tf
+from PIL import Image
+import os
+from sklearn.model_selection import train_test_split  #to split training and testing data
+import keras
+from keras.utils import to_categorical  #to convert the labels present in y_train and t_test into one-hot encoding
+from keras.models import Sequential, load_model
+from keras.layers import Conv2D, MaxPool2D, Dense, Flatten, Dropout  #to create CNN
+
+data = []
+labels = []
+classes = 43
+cur_path = "/content/GTSRB-Traffic-Sign-Classifier/GTSRB Dataset"
+
+#Retrieving the images and their labels
+for i in range(classes):
+    path = os.path.join(cur_path,"Train",str(i))
+    images = os.listdir(path)
+    for a in images:
+        try:
+            image = Image.open(path + "/" + a)
+            image = image.resize((30,30))
+            image = np.array(image)
+
+            data.append(image)
+            labels.append(i)
+        except:
+            print("Error loading image")
+
+#Converting lists into numpy arrays
+data = np.array(data)
+labels = np.array(labels)
+print(data.shape, labels.shape)
+
+#Splitting training and testing dataset
+X_train, X_test, Y_train, Y_test = train_test_split(data, labels, test_size=0.2, random_state=42)
+print(X_train.shape, X_test.shape, Y_train.shape, Y_test.shape)
+
+#Converting the labels into one hot encoding
+Y_train = to_categorical(Y_train, 43)
+Y_test = to_categorical(Y_test, 43)
+
+#Building the model
+model = Sequential()
+model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu', input_shape=X_train.shape[1:]))
+model.add(Conv2D(filters=32, kernel_size=(5,5), activation='relu'))
+model.add(MaxPool2D(pool_size=(2, 2)))
+model.add(Dropout(rate=0.25))
+model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
+model.add(Conv2D(filters=64, kernel_size=(3, 3), activation='relu'))
+model.add(MaxPool2D(pool_size=(2, 2)))
+model.add(Dropout(rate=0.25))
+model.add(Flatten())
+model.add(Dense(256, activation='relu'))
+model.add(Dropout(rate=0.5))
+model.add(Dense(43, activation='softmax'))
+
+#Compilation of the model
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+eps = 15
+history = model.fit(X_train, Y_train, batch_size=32, epochs=eps, validation_data=(X_test, Y_test))
+model.save("/content/TrafficSignClassifierModel.keras")
+
+#plotting graphs for accuracy
+plt.figure(0)
+plt.plot(history.history['accuracy'], label='training accuracy')
+plt.plot(history.history['val_accuracy'], label='val accuracy')
+plt.title('Accuracy')
+plt.xlabel('epochs')
+plt.ylabel('accuracy')
+plt.legend()
+plt.show()
+plt.figure(1)
+plt.plot(history.history['loss'], label='training loss')
+plt.plot(history.history['val_loss'], label='val loss')
+plt.title('Loss')
+plt.xlabel('epochs')
+plt.ylabel('loss')
+plt.legend()
+plt.show()
+
+#dictionary to label all traffic signs class.
+classes = { 1:'Speed limit (20km/h)',
+           2:'Speed limit (30km/h)',
+           3:'Speed limit (50km/h)',
+           4:'Speed limit (60km/h)',
+           5:'Speed limit (70km/h)',
+           6:'Speed limit (80km/h)',
+           7:'End of speed limit (80km/h)',
+           8:'Speed limit (100km/h)',
+           9:'Speed limit (120km/h)',
+           10:'No passing',
+           11:'No passing veh over 3.5 tons',
+           12:'Right-of-way at intersection',
+           13:'Priority road',
+           14:'Yield',
+           15:'Stop',
+           16:'No vehicles',
+           17:'Veh > 3.5 tons prohibited',
+           18:'No entry',
+           19:'General caution',
+           20:'Dangerous curve left',
+           21:'Dangerous curve right',
+           22:'Double curve',
+           23:'Bumpy road',
+           24:'Slippery road',
+           25:'Road narrows on the right',
+           26:'Road work',
+           27:'Traffic signals',
+           28:'Pedestrians',
+           29:'Children crossing',
+           30:'Bicycles crossing',
+           31:'Beware of ice/snow',
+           32:'Wild animals crossing',
+           33:'End speed + passing limits',
+           34:'Turn right ahead',
+           35:'Turn left ahead',
+           36:'Ahead only',
+           37:'Go straight or right',
+           38:'Go straight or left',
+           39:'Keep right',
+           40:'Keep left',
+           41:'Roundabout mandatory',
+           42:'End of no passing',
+           43:'End no passing vehicle with a weight greater than 3.5 tons' }
+
+#testing accuracy on test dataset
+from sklearn.metrics import accuracy_score
+y_test = pd.read_csv(cur_path + "/" + 'Test.csv')
+labels = y_test["ClassId"].values
+imgs = y_test["Path"].values
+data=[]
+
+for img in imgs:
+    image = Image.open(cur_path + "/" + img)
+    image = image.resize((30,30))
+    data.append(np.array(image))
+
+X_test=np.array(data)
+predict_x=model.predict(X_test)
+classes_x=np.argmax(predict_x,axis=1)
+
+# Accuracy with the test data
+from sklearn.metrics import accuracy_score
+print(accuracy_score(labels, classes_x))
+
+#One-by-one testing to also visualise the test sample, the predicted and true labels!
+from random import randint
+
+y_test = pd.read_csv(cur_path + "/" + 'Test.csv')
+labels = y_test["ClassId"].values
+imgs = y_test["Path"].values
+
+a = randint(1, len(imgs) - 20)
+
+for i in range(a, a + 20):
+    data = []
+    image = Image.open(cur_path + "/" + imgs[i])
+    image = image.resize((30,30))
+    data.append(np.array(image))
+
+    X_test=np.array(data)
+    predict_x = model.predict(np.expand_dims(X_test[0], axis=0))
+    classes_x= np.argmax(predict_x,axis=1)
+
+    plt.imshow(np.array(Image.open(cur_path + "/" + imgs[i])))
+    plt.show()
+    print("Prediction: " + classes[int(classes_x) + 1])
+    print("True Label: " + classes[int(labels[i] + 1)])
